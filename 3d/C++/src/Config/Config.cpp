@@ -1,40 +1,40 @@
 // Config.cpp
 #include "Config.hpp"
 
-// Commit Krishna's config file
 #include <iostream>
-#include <vector>
+#include <fstream>
+#include "yaml-cpp/yaml.h"
 
-class BaseModel {
-    // TODO must find a replacement to pydantic python library BaseModel
-};
+/**
+ * Include BacilliConfig and SphereConfig config classes
+ * Include BaseConfig from pydantic
+ */
+#include "Sphere.cpp"
 
-class SimulationConfig : public BaseModel {
+template <typename T>
+class BaseConfig {
 public:
-    int iterationsPerCell;
-    float backgroundColor;
-    float cellColor;
-    int padding = 0;
-    float zScaling = 1;
-    float blurSigma = 0;
-    int zSlices = -1;
-    std::vector<int> zValues;
-
-    SimulationConfig() {
-        iterationsPerCell = 0;
-        backgroundColor = 0.0f;
-        cellColor = 0.0f;
-    }
-
-    void checkZValues() const {
-        if (!zValues.empty()) {
-            throw std::invalid_argument("zValues should not be set manually");
-        }
-    }
-
-    void checkZSlices() const {
-        if (zSlices != -1) {
-            throw std::invalid_argument("zSlices should not be set manually");
-        }
+    CellConfig cell;
+    SimulationConfig simulation;
+    ProbabilityConfig prob;
+    BaseConfig(const YAML::Node& node) {
+        // Parse YAML node and initialize config object
+        simulation();
+        prob();
+        cell(node); //need to update cell/sphere.cpp
     }
 };
+
+
+template <typename T>
+BaseConfig<T> loadConfig(const std::string& path) {
+    YAML::Node config = YAML::LoadFile(path);
+
+    if (config["cellType"].as<std::string>() == "sphere") {
+        return BaseConfig<SphereConfig>(config);
+    } else if (config["cellType"].as<std::string>() == "bacilli") {
+        return BaseConfig<BacilliConfig>(config);
+    } else {
+        throw std::invalid_argument("Invalid cell type: " + config["cellType"].as<std::string>());
+    }
+}
